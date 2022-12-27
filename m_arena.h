@@ -28,5 +28,6 @@ struct m_arena {
 struct m_arena *m_arena_init(size_t starting_capacity);
 void *m_arena_alloc(struct m_arena *arena, size_t capacity);
 void m_arena_release(struct m_arena *arena);
+void m_arena_reset(struct m_arena *arena);
 
 #endif // !SAC_H

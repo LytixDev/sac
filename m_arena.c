@@ -15,11 +15,37 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 #include <assert.h>
 
 #include "m_arena.h"
 
 
+/* internal functions */
+#define SAC_GROW_CAPACITY(capacity) \
+    ((capacity) < 8 ? 8 : (capacity) * 2)
+
+static void *sac_internal_realloc(void *p, size_t new_size)
+{
+    void *res = realloc(p, new_size);
+    if (res == NULL) {
+        fprintf(stderr, "sac: realloc failed\n");
+        exit(1);
+    }
+
+    return res;
+}
+
+static void m_arena_ensure_capacity(struct m_arena *arena)
+{
+    if (arena->pos > arena->capacity) {
+        arena->capacity = SAC_GROW_CAPACITY(arena->capacity);
+        sac_internal_realloc(arena->memory, arena->capacity);
+    }
+}
+
+/* functions */
 struct m_arena *m_arena_init(size_t starting_capacity)
 {
     assert(starting_capacity > 0);
@@ -39,10 +65,19 @@ void *m_arena_alloc(struct m_arena *arena, size_t capacity)
 
     void *p = arena->memory + arena->pos;
     arena->pos += capacity;
-    if (arena->pos > arena->capacity) {
-        arena->capacity = arena->capacity * 2;
-        arena->memory = realloc(arena->memory, arena->capacity);
-    }
+    m_arena_ensure_capacity(arena);
+    return p;
+}
+
+void *m_arena_alloc_zero(struct m_arena *arena, size_t capacity)
+{
+    assert(arena != NULL);
+    assert(capacity > 0);
+
+    void *p = arena->memory + arena->pos;
+    arena->pos += capacity;
+    m_arena_ensure_capacity(arena);
+    memset(p, 0, capacity);
     return p;
 }
 
@@ -52,4 +87,9 @@ void m_arena_release(struct m_arena *arena)
 
     free(arena->memory);
     free(arena);
+}
+
+void m_arena_reset(struct m_arena *arena)
+{
+    arena->pos = 0;
 }

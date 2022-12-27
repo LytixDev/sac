@@ -26,9 +26,11 @@ int main()
 
     char *str = m_arena_alloc(arena, 16);
     char *str2 = m_arena_alloc(arena, 16);
+    char *str3 = m_arena_alloc(arena, 8);
     strcpy(str, "hello");
-    strcpy(str2, "world!");
-    printf("%s %s\n", str, str2);
+    strcpy(str2, "world");
+    strcpy(str3, ":-)");
+    printf("%s %s %s\n", str, str2, str3);
 
     m_arena_release(arena);
 }
