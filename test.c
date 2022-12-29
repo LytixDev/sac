@@ -18,14 +18,14 @@
 #include <string.h>
 
 #define SAC_IMPLEMENTATION
-#include "m_arena.h"
+#include "sac.h"
+
 
 int main()
 {
 #ifdef BAD_AARCH
     fprintf(stderr, "may not work properly");
 #endif
-
     struct m_arena *arena = m_arena_init(0, 4096);
 
     char *str = m_arena_alloc(arena, 16);
