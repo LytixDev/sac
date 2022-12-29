@@ -19,14 +19,21 @@
 
 #include <stdlib.h>
 
+#if !(defined __x86_64__ && defined linux)
+#       define BAD_AARCH
+#endif
+
+#define GB_SIZE_T(x) ((size_t)(x) << 30)
+
 struct m_arena {
     void *memory;
     size_t pos;
     size_t capacity;
+    size_t committed;
 };
 
-struct m_arena *m_arena_init(size_t starting_capacity);
-void *m_arena_alloc(struct m_arena *arena, size_t capacity);
+struct m_arena *m_arena_init(size_t starting_committed);
+void *m_arena_alloc(struct m_arena *arena, size_t size);
 void m_arena_release(struct m_arena *arena);
 void m_arena_reset(struct m_arena *arena);
 

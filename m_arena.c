@@ -18,54 +18,67 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
+#include <fcntl.h>
+#include "sys/mman.h"
 
 #include "m_arena.h"
 
 
 /* internal functions */
-#define SAC_GROW_CAPACITY(capacity) \
-    ((capacity) < 8 ? 8 : (capacity) * 2)
-
-static void *sac_internal_realloc(void *p, size_t new_size)
+static void m_arena_commit(struct m_arena *arena, size_t commit)
 {
-    void *res = realloc(p, new_size);
-    if (res == NULL) {
-        fprintf(stderr, "sac: realloc failed\n");
-        exit(1);
-    }
-
-    return res;
+    mprotect(arena->memory + arena->committed, commit, PROT_READ | PROT_WRITE);
+    arena->committed += commit;
 }
 
-static void m_arena_ensure_capacity(struct m_arena *arena)
+static void m_arena_ensure_commited(struct m_arena *arena)
 {
     if (arena->pos > arena->capacity) {
-        arena->capacity = SAC_GROW_CAPACITY(arena->capacity);
-        sac_internal_realloc(arena->memory, arena->capacity);
+        fprintf(stderr, "sac: arena full!\n");
+        exit(1);
+    }
+    if (arena->pos > arena->committed) {
+        /* attempt to double the commited capacity */
+        size_t to_commit = arena->committed;
+        size_t max_commitable = arena->capacity - arena->committed;
+        if (to_commit > max_commitable)
+            to_commit = max_commitable;
+        m_arena_commit(arena, to_commit);
     }
 }
 
 /* functions */
-struct m_arena *m_arena_init(size_t starting_capacity)
+struct m_arena *m_arena_init(size_t starting_commited)
 {
-    assert(starting_capacity > 0);
+    assert(starting_commited > 0);
 
     struct m_arena *arena = malloc(sizeof(struct m_arena));
-    arena->memory = malloc(starting_capacity);
-    arena->pos = 0;
-    arena->capacity = starting_capacity;
 
+    int fd = open("/dev/zero", O_RDWR);   
+    if (fd == -1)
+        exit(1);
+
+    arena->capacity = GB_SIZE_T(4);
+    arena->memory = mmap(NULL, arena->capacity, PROT_NONE, MAP_PRIVATE, fd, 0);
+    if (arena->memory == MAP_FAILED) {
+        fprintf(stderr, "sac: map failed in file %s on line %d\n", __FILE__, __LINE__);
+        exit(1);
+    }
+
+    arena->committed = 0;
+    arena->pos = 0;
+    m_arena_commit(arena, starting_commited);
     return arena;
 }
 
-void *m_arena_alloc(struct m_arena *arena, size_t capacity)
+void *m_arena_alloc(struct m_arena *arena, size_t size)
 {
     assert(arena != NULL);
-    assert(capacity > 0);
+    assert(size > 0);
 
     void *p = arena->memory + arena->pos;
-    arena->pos += capacity;
-    m_arena_ensure_capacity(arena);
+    arena->pos += size;
+    m_arena_ensure_commited(arena);
     return p;
 }
 
@@ -76,7 +89,7 @@ void *m_arena_alloc_zero(struct m_arena *arena, size_t capacity)
 
     void *p = arena->memory + arena->pos;
     arena->pos += capacity;
-    m_arena_ensure_capacity(arena);
+    m_arena_ensure_commited(arena);
     memset(p, 0, capacity);
     return p;
 }
@@ -84,8 +97,7 @@ void *m_arena_alloc_zero(struct m_arena *arena, size_t capacity)
 void m_arena_release(struct m_arena *arena)
 {
     assert(arena != NULL);
-
-    free(arena->memory);
+    munmap(arena->memory, arena->capacity);
     free(arena);
 }
 
