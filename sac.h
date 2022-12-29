@@ -14,20 +14,67 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+#ifndef SAC_H
+#define SAC_H
+
 #include <stdlib.h>
+
+#if !(defined __x86_64__ && defined linux)
+#       define SAC_BAD_AARCH
+#endif
+
+#define GB_SIZE_T(x) ((size_t)(x) << 30)
+#define SAC_DEFAULT_CAPACITY GB_SIZE_T(4)
+
+
+/* types */
+/*
+ * generic memory arena that dynamically grows its commited size.
+ * more complex memory arenas can be built using this as a base.
+ */
+struct m_arena {
+    void *memory;
+    size_t pos;
+    size_t capacity;
+    size_t committed;
+};
+
+
+/* functions */
+struct m_arena *m_arena_init(size_t capacity, size_t starting_commited);
+void m_arena_release(struct m_arena *arena);
+
+void *m_arena_alloc(struct m_arena *arena, size_t size);
+void *m_arena_alloc_zero(struct m_arena *arena, size_t size);
+int m_arena_free(struct m_arena *arena, size_t size);
+
+void m_arena_clear(struct m_arena *arena);
+
+#define m_arena_alloc_array(arena, type, count) (type *)m_arena_alloc((arena), sizeof(type) * (count))
+#define m_arena_alloc_array_zero(arena, type, count) (type *)m_arena_alloc_zero((arena), sizeof(type) * (count))
+#define m_arena_alloc_struct(arena, type) m_arena_alloc_array((arena), (type), 1)
+#define m_arena_alloc_struct_zero(arena, type) m_arena_alloc_array_zero((arena), (type), 1)
+
+
+#endif /* !SAC_H */
+
+
+#ifdef SAC_IMPLEMENTATION
+
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
 #include <fcntl.h>
 #include "sys/mman.h"
 
-#include "m_arena.h"
-
-
 /* internal functions */
 static void m_arena_commit(struct m_arena *arena, size_t commit)
 {
-    mprotect(arena->memory + arena->committed, commit, PROT_READ | PROT_WRITE);
+    int rc = mprotect(arena->memory + arena->committed, commit, PROT_READ | PROT_WRITE);
+    if (rc == -1) {
+        fprintf(stderr, "sac: committing memory failed in file %s on line %d\n", __FILE__, __LINE__);
+        exit(1);
+    }
     arena->committed += commit;
 }
 
@@ -48,33 +95,40 @@ static void m_arena_ensure_commited(struct m_arena *arena)
 }
 
 /* functions */
-struct m_arena *m_arena_init(size_t starting_commited)
+struct m_arena *m_arena_init(size_t capacity, size_t starting_committed)
 {
-    assert(starting_commited > 0);
+    assert(starting_committed > 0);
 
     struct m_arena *arena = malloc(sizeof(struct m_arena));
+    arena->capacity = capacity == 0 ? SAC_DEFAULT_CAPACITY : capacity;
 
+#ifdef linux
+    arena->memory = mmap(NULL, arena->capacity, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0); 
+#elif defined __unix__
+    /* 
+     * apparently MAP_ANONYMOUS is a linux specific feature.
+     * this is the POSIX compliant way of doing it.
+     */
     int fd = open("/dev/zero", O_RDWR);   
     if (fd == -1)
         exit(1);
 
-    arena->capacity = GB_SIZE_T(4);
     arena->memory = mmap(NULL, arena->capacity, PROT_NONE, MAP_PRIVATE, fd, 0);
     if (arena->memory == MAP_FAILED) {
         fprintf(stderr, "sac: map failed in file %s on line %d\n", __FILE__, __LINE__);
         exit(1);
     }
+#endif
 
     arena->committed = 0;
     arena->pos = 0;
-    m_arena_commit(arena, starting_commited);
+    m_arena_commit(arena, starting_committed);
     return arena;
 }
 
 void *m_arena_alloc(struct m_arena *arena, size_t size)
 {
     assert(arena != NULL);
-    assert(size > 0);
 
     void *p = arena->memory + arena->pos;
     arena->pos += size;
@@ -82,16 +136,24 @@ void *m_arena_alloc(struct m_arena *arena, size_t size)
     return p;
 }
 
-void *m_arena_alloc_zero(struct m_arena *arena, size_t capacity)
+void *m_arena_alloc_zero(struct m_arena *arena, size_t size)
 {
     assert(arena != NULL);
-    assert(capacity > 0);
 
     void *p = arena->memory + arena->pos;
-    arena->pos += capacity;
+    arena->pos += size;
     m_arena_ensure_commited(arena);
-    memset(p, 0, capacity);
+    memset(p, 0, size);
     return p;
+}
+
+int m_arena_free(struct m_arena *arena, size_t size)
+{
+    if (size > arena->pos)
+        return -1;
+
+    arena->pos -= size;
+    return 0;
 }
 
 void m_arena_release(struct m_arena *arena)
@@ -105,3 +167,5 @@ void m_arena_reset(struct m_arena *arena)
 {
     arena->pos = 0;
 }
+
+#endif /* !SAC_IMPLEMENTATION */
