@@ -50,10 +50,13 @@ int m_arena_free(struct m_arena *arena, size_t size);
 
 void m_arena_clear(struct m_arena *arena);
 
+void *m_arena_get(struct m_arena *arena, size_t idx);
+
 #define m_arena_alloc_array(arena, type, count) (type *)m_arena_alloc((arena), sizeof(type) * (count))
 #define m_arena_alloc_array_zero(arena, type, count) (type *)m_arena_alloc_zero((arena), sizeof(type) * (count))
-#define m_arena_alloc_struct(arena, type) m_arena_alloc_array((arena), (type), 1)
+#define m_arena_alloc_struct(arena, type) (type *)m_arena_alloc((arena), sizeof(type))
 #define m_arena_alloc_struct_zero(arena, type) m_arena_alloc_array_zero((arena), (type), 1)
+#define m_arena_gett(arena, idx, type) (type *)m_arena_get((arena), sizeof(type) * (idx))
 
 
 #endif /* !SAC_H */
@@ -163,9 +166,16 @@ void m_arena_release(struct m_arena *arena)
     free(arena);
 }
 
-void m_arena_reset(struct m_arena *arena)
+void m_arena_clear(struct m_arena *arena)
 {
     arena->pos = 0;
+}
+
+void *m_arena_get(struct m_arena *arena, size_t byte_idx)
+{
+    if (byte_idx > arena->pos)
+        return NULL;
+    return arena->memory + byte_idx;
 }
 
 #endif /* !SAC_IMPLEMENTATION */

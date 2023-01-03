@@ -21,12 +21,25 @@
 #include "sac.h"
 
 
+struct m_arena *context_arena = NULL;
+
+
+void reuse_example() 
+{
+    for (int i = 0; i < 32; i++) {
+        int *a = m_arena_alloc(context_arena, 4);
+        *a = i * i;
+    }
+}
+
+
 int main()
 {
 #ifdef BAD_AARCH
     fprintf(stderr, "may not work properly");
 #endif
     struct m_arena *arena = m_arena_init(0, 4096);
+    context_arena = arena;
 
     char *str = m_arena_alloc(arena, 16);
     char *str2 = m_arena_alloc(arena, 16);
@@ -35,6 +48,14 @@ int main()
     strcpy(str2, "world");
     strcpy(str3, ":-)");
     printf("%s %s %s\n", str, str2, str3);
+
+    m_arena_clear(arena);
+
+    reuse_example();
+
+    for (int i = 0; i < 32; i++)
+        printf("%d\n", *m_arena_gett(arena, i, int));
+
 
     m_arena_release(arena);
 }
