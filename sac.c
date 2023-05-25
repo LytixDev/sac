@@ -10,7 +10,7 @@
 /* internal functions */
 static bool m_arena_commit(struct m_arena *arena, size_t commit)
 {
-    assert(arena->committed != SAC_NEVER_COMMIT);
+    assert(arena->committed != SAC_NOT_MANAGE);
 
     /* no more space to commit */
     if (arena->pos + commit > arena->capacity)
@@ -35,26 +35,25 @@ static bool m_arena_ensure_commited(struct m_arena *arena)
         false;
     }
 
+    if (arena->committed == SAC_NOT_MANAGE || arena->committed >= arena->pos)
+        return true;
+
     /*
      * will only be called if pos < capacity, so we the case where we don't manage the memory,
-     * i.e committed = SAC_NEVER_COMMIT, will never enter here
+     * i.e committed = SAC_NOT_MANAGE, will never enter here
      */
-    if (arena->pos > arena->committed) {
-        size_t max_commitable = arena->capacity - arena->committed;
-        size_t delta = arena->pos - arena->committed;
-        if (delta > max_commitable)
-            return false;
+    size_t max_commitable = arena->capacity - arena->committed;
+    size_t delta = arena->pos - arena->committed;
+    if (delta > max_commitable)
+        return false;
 
-        /* commit as much as we need + the default, or just the default if its sufficient */
-        size_t to_commit = (delta > SAC_DEFAULT_COMMIT_SIZE ? delta + SAC_DEFAULT_COMMIT_SIZE : SAC_DEFAULT_COMMIT_SIZE);
-        if (to_commit > max_commitable)
-            to_commit = max_commitable;
+    /* commit as much as we need + the default, or just the default if its sufficient */
+    size_t to_commit = (delta > SAC_DEFAULT_COMMIT_SIZE ? delta + SAC_DEFAULT_COMMIT_SIZE : SAC_DEFAULT_COMMIT_SIZE);
+    if (to_commit > max_commitable)
+        to_commit = max_commitable;
 
-        m_arena_commit(arena, to_commit);
-        return m_arena_ensure_commited(arena);
-    }
-
-    return true;
+    m_arena_commit(arena, to_commit);
+    return m_arena_ensure_commited(arena);
 }
 
 /*
@@ -76,7 +75,7 @@ static uintptr_t align_forward(uintptr_t ptr, size_t align)
 
     uintptr_t p = ptr;
     uintptr_t a = (uintptr_t)align;
-    uintptr_t modulo = p & (a-1);
+    uintptr_t modulo = p & (a - 1);
 
     if (modulo != 0)
         p += a - modulo;
@@ -93,12 +92,11 @@ void m_arena_init(struct m_arena *arena, void *backing_memory, size_t backing_le
     arena->memory = backing_memory;
     arena->capacity = backing_length;
     arena->pos = 0;
-    arena->committed = SAC_NEVER_COMMIT;
+    arena->committed = SAC_NOT_MANAGE;
 }
 
 void m_arena_init_dynamic(struct m_arena *arena, size_t capacity, size_t starting_committed)
 {
-    assert(starting_committed > 0);
     assert(capacity >= starting_committed);
 
     arena->capacity = (capacity == 0 ? SAC_DEFAULT_CAPACITY : capacity);
@@ -133,7 +131,7 @@ void m_arena_release(struct m_arena *arena)
     assert(arena != NULL);
 
     /* the implementation does not manage the backing memory */
-    if (arena->committed == SAC_NEVER_COMMIT)
+    if (arena->committed == SAC_NOT_MANAGE)
         return;
 
     munmap(arena->memory, arena->capacity);
@@ -143,15 +141,15 @@ void m_arena_release(struct m_arena *arena)
  * heavily modified, but inspired by:
  * https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
  */
-void *arena_alloc_internal(struct m_arena *arena, size_t size, size_t align, bool zero)
+void *m_arena_alloc_internal(struct m_arena *arena, size_t size, size_t align, bool zero)
 {
     uintptr_t curr_ptr = (uintptr_t)arena->memory + (uintptr_t)arena->pos;
     uintptr_t offset = align_forward(curr_ptr, align);
     offset -= (uintptr_t)arena->memory; /* change to relative offset */
     arena->pos += offset + size;
 
-    bool fail = m_arena_ensure_commited(arena);
-    if (fail)
+    bool success = m_arena_ensure_commited(arena);
+    if (!success)
         return NULL;
 
     void *ptr = arena->memory + offset;

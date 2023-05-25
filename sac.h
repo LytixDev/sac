@@ -17,6 +17,7 @@
 #ifndef SAC_H
 #define SAC_H
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
 
@@ -38,8 +39,8 @@ typedef struct m_arena_tmp ArenaTmp;
 #define SAC_DEFAULT_ALIGNMENT (sizeof(void *))
 #endif
 
-/* if zero then the implementation does not manage the backing memory */
-#define SAC_NEVER_COMMIT 0
+/* implementation does not manage the backing memory */
+#define SAC_NOT_MANAGE SIZE_MAX
 
 
 /* types */
@@ -60,9 +61,9 @@ void m_arena_init(struct m_arena *arena, void *backing_memory, size_t backing_le
 void m_arena_init_dynamic(struct m_arena *arena, size_t capacity, size_t starting_committed);
 void m_arena_release(struct m_arena *arena);
 
-void *arena_alloc_internal(struct m_arena *arena, size_t size, size_t align, bool zero);
-#define arena_alloc(arena, size) arena_alloc_internal(arena, size, SAC_DEFAULT_ALIGNMENT, false)
-#define arena_alloc_zero(arena, size) arena_alloc_internal(arena, size, SAC_DEFAULT_ALIGNMENT, true)
+void *m_arena_alloc_internal(struct m_arena *arena, size_t size, size_t align, bool zero);
+#define m_arena_alloc(arena, size) m_arena_alloc_internal(arena, size, SAC_DEFAULT_ALIGNMENT, false)
+#define m_arena_alloc_zero(arena, size) m_arena_alloc_internal(arena, size, SAC_DEFAULT_ALIGNMENT, true)
 
 void m_arena_clear(struct m_arena *arena);
 void *m_arena_get(struct m_arena *arena, size_t byte_idx);
