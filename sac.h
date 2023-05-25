@@ -18,22 +18,37 @@
 #define SAC_H
 
 #include <stdlib.h>
+#include <stdint.h>
 
-#if !(defined __x86_64__ && defined linux)
+#if !(defined __x86_64__ && defined __unix__)
 #       define SAC_BAD_AARCH
 #endif
 
+#define KB_SIZE_T(x) ((size_t)(x) << 10)
 #define GB_SIZE_T(x) ((size_t)(x) << 30)
-#define SAC_DEFAULT_CAPACITY GB_SIZE_T(4)
+#define SAC_DEFAULT_CAPACITY GB_SIZE_T(2)
+#define SAC_DEFAULT_COMMIT_SIZE KB_SIZE_T(8)
+
+#ifdef SAC_TYPEDEF
+typedef struct m_arena Arena;
+typedef struct m_arena_tmp ArenaTmp;
+#endif /* SAC_TYPEDEF */
+
+#ifndef SAC_DEFAULT_ALIGNMENT
+#define SAC_DEFAULT_ALIGNMENT (sizeof(void *))
+#endif
+
+/* if zero then the implementation does not manage the backing memory */
+#define SAC_NEVER_COMMIT 0
 
 
 /* types */
 /*
- * generic memory arena that dynamically grows its commited size.
+ * generic memory arena that dynamically grows its committed size.
  * more complex memory arenas can be built using this as a base.
  */
 struct m_arena {
-    void *memory;
+    uint8_t *memory;
     size_t pos;
     size_t capacity;
     size_t committed;
@@ -41,141 +56,22 @@ struct m_arena {
 
 
 /* functions */
-struct m_arena *m_arena_init(size_t capacity, size_t starting_commited);
+void m_arena_init(struct m_arena *arena, void *backing_memory, size_t backing_length);
+void m_arena_init_dynamic(struct m_arena *arena, size_t capacity, size_t starting_committed);
 void m_arena_release(struct m_arena *arena);
 
-void *m_arena_alloc(struct m_arena *arena, size_t size);
-void *m_arena_alloc_zero(struct m_arena *arena, size_t size);
-int m_arena_free(struct m_arena *arena, size_t size);
+void *arena_alloc_internal(struct m_arena *arena, size_t size, size_t align, bool zero);
+#define arena_alloc(arena, size) arena_alloc_internal(arena, size, SAC_DEFAULT_ALIGNMENT, false)
+#define arena_alloc_zero(arena, size) arena_alloc_internal(arena, size, SAC_DEFAULT_ALIGNMENT, true)
 
 void m_arena_clear(struct m_arena *arena);
+void *m_arena_get(struct m_arena *arena, size_t byte_idx);
 
-void *m_arena_get(struct m_arena *arena, size_t idx);
-
-#define m_arena_alloc_array(arena, type, count) (type *)m_arena_alloc((arena), sizeof(type) * (count))
-#define m_arena_alloc_array_zero(arena, type, count) (type *)m_arena_alloc_zero((arena), sizeof(type) * (count))
-#define m_arena_alloc_struct(arena, type) (type *)m_arena_alloc((arena), sizeof(type))
-#define m_arena_alloc_struct_zero(arena, type) m_arena_alloc_array_zero((arena), (type), 1)
-#define m_arena_gett(arena, idx, type) (type *)m_arena_get((arena), sizeof(type) * (idx))
+//#define m_arena_alloc_array(arena, type, count) (type *)m_arena_alloc((arena), sizeof(type) * (count))
+//#define m_arena_alloc_array_zero(arena, type, count) (type *)m_arena_alloc_zero((arena), sizeof(type) * (count))
+//#define m_arena_alloc_struct(arena, type) (type *)m_arena_alloc((arena), sizeof(type))
+//#define m_arena_alloc_struct_zero(arena, type) m_arena_alloc_array_zero((arena), (type), 1)
+//#define m_arena_gett(arena, idx, type) (type *)m_arena_get((arena), sizeof(type) * (idx))
 
 
 #endif /* !SAC_H */
-
-
-#ifdef SAC_IMPLEMENTATION
-
-#include <string.h>
-#include <stdio.h>
-#include <assert.h>
-#include <fcntl.h>
-#include "sys/mman.h"
-
-/* internal functions */
-static void m_arena_commit(struct m_arena *arena, size_t commit)
-{
-    int rc = mprotect(arena->memory + arena->committed, commit, PROT_READ | PROT_WRITE);
-    if (rc == -1) {
-        fprintf(stderr, "sac: committing memory failed in file %s on line %d\n", __FILE__, __LINE__);
-        exit(1);
-    }
-    arena->committed += commit;
-}
-
-static void m_arena_ensure_commited(struct m_arena *arena)
-{
-    if (arena->pos > arena->capacity) {
-        fprintf(stderr, "sac: arena full!\n");
-        exit(1);
-    }
-    if (arena->pos > arena->committed) {
-        /* attempt to double the commited capacity */
-        size_t to_commit = arena->committed;
-        size_t max_commitable = arena->capacity - arena->committed;
-        if (to_commit > max_commitable)
-            to_commit = max_commitable;
-        m_arena_commit(arena, to_commit);
-    }
-}
-
-/* functions */
-struct m_arena *m_arena_init(size_t capacity, size_t starting_committed)
-{
-    assert(starting_committed > 0);
-
-    struct m_arena *arena = malloc(sizeof(struct m_arena));
-    arena->capacity = capacity == 0 ? SAC_DEFAULT_CAPACITY : capacity;
-
-#ifdef linux
-    arena->memory = mmap(NULL, arena->capacity, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0); 
-#elif defined __unix__
-    /* 
-     * apparently MAP_ANONYMOUS is a linux specific feature.
-     * this is the POSIX compliant way of doing it.
-     */
-    int fd = open("/dev/zero", O_RDWR);   
-    if (fd == -1)
-        exit(1);
-
-    arena->memory = mmap(NULL, arena->capacity, PROT_NONE, MAP_PRIVATE, fd, 0);
-    if (arena->memory == MAP_FAILED) {
-        fprintf(stderr, "sac: map failed in file %s on line %d\n", __FILE__, __LINE__);
-        exit(1);
-    }
-#endif
-
-    arena->committed = 0;
-    arena->pos = 0;
-    m_arena_commit(arena, starting_committed);
-    return arena;
-}
-
-void *m_arena_alloc(struct m_arena *arena, size_t size)
-{
-    assert(arena != NULL);
-
-    void *p = arena->memory + arena->pos;
-    arena->pos += size;
-    m_arena_ensure_commited(arena);
-    return p;
-}
-
-void *m_arena_alloc_zero(struct m_arena *arena, size_t size)
-{
-    assert(arena != NULL);
-
-    void *p = arena->memory + arena->pos;
-    arena->pos += size;
-    m_arena_ensure_commited(arena);
-    memset(p, 0, size);
-    return p;
-}
-
-int m_arena_free(struct m_arena *arena, size_t size)
-{
-    if (size > arena->pos)
-        return -1;
-
-    arena->pos -= size;
-    return 0;
-}
-
-void m_arena_release(struct m_arena *arena)
-{
-    assert(arena != NULL);
-    munmap(arena->memory, arena->capacity);
-    free(arena);
-}
-
-void m_arena_clear(struct m_arena *arena)
-{
-    arena->pos = 0;
-}
-
-void *m_arena_get(struct m_arena *arena, size_t byte_idx)
-{
-    if (byte_idx > arena->pos)
-        return NULL;
-    return arena->memory + byte_idx;
-}
-
-#endif /* !SAC_IMPLEMENTATION */
