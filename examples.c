@@ -44,6 +44,7 @@ void context_example(void)
     context_foo();
     // not needed as the arenas backed memory has not been allocated manually anywhere
     m_arena_release(arena);
+    free(arena);
 }
 
 void static_example(void)
