@@ -50,9 +50,14 @@ typedef struct m_arena_tmp ArenaTmp;
  */
 struct m_arena {
     uint8_t *memory;    // the backing memory
-    size_t pos;         // first unused position in the backing memory
+    size_t offset;      // first unused position in the backing memory
     size_t capacity;    // the maximum capacity of the backing memory
     size_t committed;   // how much of the backing memory is acutally "backing"
+};
+
+struct m_arena_tmp {
+    struct m_arena *arena;
+    size_t offset;
 };
 
 
@@ -74,4 +79,11 @@ void *m_arena_get(struct m_arena *arena, size_t byte_idx);
 #define m_arena_alloc_struct_zero(arena, type) (type *)m_arena_alloc_zero((arena), sizeof(type))
 #define m_arena_gett(arena, idx, type) (type *)m_arena_get((arena), sizeof(type) * (idx))
 
+
+struct m_arena_tmp m_arena_tmp_init(struct m_arena *arena);
+void m_arena_tmp_release(struct m_arena_tmp tmp);
+/* cursed */
+#define ARENA_TMP(___arena) for (size_t ___i = 0, ___offset = (___arena)->offset; ___i == 0; ___i += 1, (___arena)->offset = ___offset)
+
 #endif /* !SAC_H */
+

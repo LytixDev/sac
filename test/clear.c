@@ -39,5 +39,5 @@ int main(void)
 
     m_arena_clear(&arena);
 
-    assert(arena.pos == 0);
+    assert(arena.offset == 0);
 }

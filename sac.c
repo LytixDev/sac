@@ -29,7 +29,7 @@ static bool m_arena_commit(struct m_arena *arena, size_t commit)
     assert(arena->committed != SAC_NOT_MANAGE);
 
     /* no more space to commit */
-    if (arena->pos + commit > arena->capacity)
+    if (arena->offset + commit > arena->capacity)
         return false;
 
     int rc = mprotect(arena->memory + arena->committed, commit, PROT_READ | PROT_WRITE);
@@ -42,10 +42,10 @@ static bool m_arena_commit(struct m_arena *arena, size_t commit)
 
 static bool m_arena_ensure_commited(struct m_arena *arena)
 {
-    if (arena->pos > arena->capacity)
+    if (arena->offset > arena->capacity)
         false;
 
-    if (arena->committed == SAC_NOT_MANAGE || arena->committed >= arena->pos)
+    if (arena->committed == SAC_NOT_MANAGE || arena->committed >= arena->offset)
         return true;
 
     /*
@@ -53,7 +53,7 @@ static bool m_arena_ensure_commited(struct m_arena *arena)
      * i.e committed = SAC_NOT_MANAGE, will never enter here
      */
     size_t max_commitable = arena->capacity - arena->committed;
-    size_t delta = arena->pos - arena->committed;
+    size_t delta = arena->offset - arena->committed;
     if (delta > max_commitable)
         return false;
 
@@ -101,7 +101,7 @@ void m_arena_init(struct m_arena *arena, void *backing_memory, size_t backing_le
 
     arena->memory = backing_memory;
     arena->capacity = backing_length;
-    arena->pos = 0;
+    arena->offset = 0;
     arena->committed = SAC_NOT_MANAGE;
 }
 
@@ -131,7 +131,7 @@ void m_arena_init_dynamic(struct m_arena *arena, size_t capacity, size_t startin
     }
 #endif
 
-    arena->pos = 0;
+    arena->offset = 0;
     arena->committed = 0;
     m_arena_commit(arena, starting_committed);
 }
@@ -154,12 +154,12 @@ void m_arena_release(struct m_arena *arena)
 void *m_arena_alloc_internal(struct m_arena *arena, size_t size, size_t alignment, bool zero)
 {
     /* curr_ptr will be the first non-used memory address */
-    uintptr_t curr_ptr = (uintptr_t)arena->memory + (uintptr_t)arena->pos;
+    uintptr_t curr_ptr = (uintptr_t)arena->memory + (uintptr_t)arena->offset;
     /* offset wil be the first aligned to one word non-used memory adress */
     uintptr_t offset = align_forward(curr_ptr, alignment);
     /* change to relative offset from the first memory adress */
     offset -= (uintptr_t)arena->memory;
-    arena->pos = offset + size;
+    arena->offset = offset + size;
 
     bool success = m_arena_ensure_commited(arena);
     if (!success)
@@ -174,13 +174,23 @@ void *m_arena_alloc_internal(struct m_arena *arena, size_t size, size_t alignmen
 
 void m_arena_clear(struct m_arena *arena)
 {
-    arena->pos = 0;
+    arena->offset = 0;
 }
 
 void *m_arena_get(struct m_arena *arena, size_t byte_idx)
 {
-    if (byte_idx > arena->pos)
+    if (byte_idx > arena->offset)
         return NULL;
 
     return arena->memory + byte_idx;
+}
+
+struct m_arena_tmp m_arena_tmp_init(struct m_arena *arena)
+{
+    return (struct m_arena_tmp){ .arena = arena, .offset = arena->offset };
+}
+
+void m_arena_tmp_release(struct m_arena_tmp tmp)
+{
+    tmp.arena->offset = tmp.offset;
 }
