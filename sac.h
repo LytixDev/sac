@@ -82,6 +82,8 @@ void *m_arena_get(struct m_arena *arena, size_t byte_idx);
 
 struct m_arena_tmp m_arena_tmp_init(struct m_arena *arena);
 void m_arena_tmp_release(struct m_arena_tmp tmp);
+/* cursed */
+#define ARENA_TMP(___arena) for (size_t ___i = 0, ___offset = (___arena)->offset; ___i == 0; ___i += 1, (___arena)->offset = ___offset)
 
 #endif /* !SAC_H */
 

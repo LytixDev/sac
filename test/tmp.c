@@ -22,12 +22,8 @@
 #include "../sac.h"
 
 
-int main(void)
+void test(void)
 {
-#ifdef SAC_BAD_AARCH
-    fprintf(stderr, "may not work properly");
-#endif
-
     Arena arena;
     uint8_t mem[256];
     m_arena_init(&arena, mem, 256);
@@ -39,7 +35,12 @@ int main(void)
 
     /* start temporary arena */
     ArenaTmp tmp = m_arena_tmp_init(&arena);
-    m_arena_alloc_array(&arena, char, 16);
+    char *a = m_arena_alloc_array(&arena, char, 16);
+    a[0] = 'a';
+    int *b = m_arena_alloc(&arena, sizeof(int));
+    *b = 1;
+    assert(a[0] == 'a');
+    assert(*b == 1);
     /* end temporary arena */
     m_arena_tmp_release(tmp);
 
@@ -53,4 +54,49 @@ int main(void)
     /* make sure we did not override anything */
     assert(*p == 420);
     assert(*(int *)m_arena_get(&arena, 0) == 420);
+}
+
+void test_macro(void)
+{
+    /* exactly the same as test(), just using the ARENA_TMP macro */
+    Arena arena;
+    uint8_t mem[256];
+    m_arena_init(&arena, mem, 256);
+
+    int *p = m_arena_alloc(&arena, sizeof(int));
+    *p = 420;
+
+    size_t pos_before = arena.offset;
+
+    ARENA_TMP(&arena) {
+        char *a = m_arena_alloc_array(&arena, char, 16);
+        a[0] = 'a';
+        int *b = m_arena_alloc(&arena, sizeof(int));
+        *b = 1;
+        assert(a[0] == 'a');
+        assert(*b == 1);
+    }
+
+    size_t pos_after = arena.offset;
+    assert(pos_before == pos_after);
+
+    /* continue allocing */
+    int *p2 = m_arena_alloc(&arena, sizeof(int));
+    *p2 = 10;
+
+    /* make sure we did not override anything */
+    assert(*p == 420);
+    assert(*(int *)m_arena_get(&arena, 0) == 420);
+}
+
+
+
+int main(void)
+{
+#ifdef SAC_BAD_AARCH
+    fprintf(stderr, "may not work properly");
+#endif
+
+    test();
+    test_macro();
 }
