@@ -49,10 +49,10 @@ typedef struct m_arena_tmp ArenaTmp;
  * more complex memory arenas can be built using this as a base.
  */
 struct m_arena {
-    uint8_t *memory;
-    size_t pos;
-    size_t capacity;
-    size_t committed;
+    uint8_t *memory;    // the backing memory
+    size_t pos;         // first unused position in the backing memory
+    size_t capacity;    // the maximum capacity of the backing memory
+    size_t committed;   // how much of the backing memory is acutally "backing"
 };
 
 
@@ -68,11 +68,10 @@ void *m_arena_alloc_internal(struct m_arena *arena, size_t size, size_t align, b
 void m_arena_clear(struct m_arena *arena);
 void *m_arena_get(struct m_arena *arena, size_t byte_idx);
 
-//#define m_arena_alloc_array(arena, type, count) (type *)m_arena_alloc((arena), sizeof(type) * (count))
-//#define m_arena_alloc_array_zero(arena, type, count) (type *)m_arena_alloc_zero((arena), sizeof(type) * (count))
-//#define m_arena_alloc_struct(arena, type) (type *)m_arena_alloc((arena), sizeof(type))
-//#define m_arena_alloc_struct_zero(arena, type) m_arena_alloc_array_zero((arena), (type), 1)
-//#define m_arena_gett(arena, idx, type) (type *)m_arena_get((arena), sizeof(type) * (idx))
-
+#define m_arena_alloc_array(arena, type, count) (type *)m_arena_alloc((arena), sizeof(type) * (count))
+#define m_arena_alloc_array_zero(arena, type, count) (type *)m_arena_alloc_zero((arena), sizeof(type) * (count))
+#define m_arena_alloc_struct(arena, type) (type *)m_arena_alloc((arena), sizeof(type))
+#define m_arena_alloc_struct_zero(arena, type) (type *)m_arena_alloc_zero((arena), sizeof(type))
+#define m_arena_gett(arena, idx, type) (type *)m_arena_get((arena), sizeof(type) * (idx))
 
 #endif /* !SAC_H */
