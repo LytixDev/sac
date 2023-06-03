@@ -59,9 +59,9 @@ int main(void)
      * the next aligned pointer should be at offset 16 since its the first multiple of 8
      * this means that the internal_pos_after should be offset 16 + sizeof(struct tuple_t)
      */
-    size_t internal_pos_before = arena.pos;
+    size_t internal_pos_before = arena.offset;
     struct tuple_t *tuple = m_arena_alloc_struct(&arena, struct tuple_t);
-    size_t internal_pos_after = arena.pos;
+    size_t internal_pos_after = arena.offset;
 
     assert(internal_pos_after == 16 + sizeof(struct tuple_t));
     /* exactly same as above. 4 padding bytes should've been added */

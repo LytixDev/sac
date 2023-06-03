@@ -32,12 +32,25 @@ int main(void)
     uint8_t mem[256];
     m_arena_init(&arena, mem, 256);
 
-    int *p = m_arena_alloc(&arena, sizeof(int) * 3);
-    p[0] = 1;
-    p[1] = 2;
-    p[2] = 3;
+    int *p = m_arena_alloc(&arena, sizeof(int));
+    *p = 420;
 
-    m_arena_clear(&arena);
+    size_t pos_before = arena.offset;
 
-    assert(arena.offset == 0);
+    /* start temporary arena */
+    ArenaTmp tmp = m_arena_tmp_init(&arena);
+    m_arena_alloc_array(&arena, char, 16);
+    /* end temporary arena */
+    m_arena_tmp_release(tmp);
+
+    size_t pos_after = arena.offset;
+    assert(pos_before == pos_after);
+
+    /* continue allocing */
+    int *p2 = m_arena_alloc(&arena, sizeof(int));
+    *p2 = 10;
+
+    /* make sure we did not override anything */
+    assert(*p == 420);
+    assert(*(int *)m_arena_get(&arena, 0) == 420);
 }
