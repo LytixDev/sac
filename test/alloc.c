@@ -23,7 +23,7 @@
 
 
 struct tuple_t {
-    int a, b, c;
+    int a, b;
 };
 
 int main(void)
@@ -31,6 +31,11 @@ int main(void)
 #ifdef SAC_BAD_AARCH
     fprintf(stderr, "may not work properly");
 #endif
+
+    if (SAC_DEFAULT_ALIGNMENT != 8 || sizeof(int) != 4) {
+        fprintf(stderr, "NOTE: skipping this test as it will only work for 64 bit systems");
+        return 0;
+    }
 
     Arena arena;
     uint8_t mem[256];
@@ -49,11 +54,18 @@ int main(void)
     assert(p[2] == 3);
 
 
+    /* 
+     * we allocated 12 bytes earlier.
+     * the next aligned pointer should be at offset 16 since its the first multiple of 8
+     * this means that the internal_pos_after should be offset 16 + sizeof(struct tuple_t)
+     */
     size_t internal_pos_before = arena.pos;
     struct tuple_t *tuple = m_arena_alloc_struct(&arena, struct tuple_t);
     size_t internal_pos_after = arena.pos;
-    printf("%zu %zu %zu\n", internal_pos_before, internal_pos_after, sizeof(struct tuple_t));
-    assert(internal_pos_before + sizeof(struct tuple_t) == internal_pos_after);
+
+    assert(internal_pos_after == 16 + sizeof(struct tuple_t));
+    /* exactly same as above. 4 padding bytes should've been added */
+    assert(internal_pos_after == internal_pos_before + 4 + sizeof(struct tuple_t));
 
     tuple->a = 1;
 }

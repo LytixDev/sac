@@ -49,10 +49,10 @@ typedef struct m_arena_tmp ArenaTmp;
  * more complex memory arenas can be built using this as a base.
  */
 struct m_arena {
-    uint8_t *memory;
-    size_t pos;
-    size_t capacity;
-    size_t committed;
+    uint8_t *memory;    // the backing memory
+    size_t pos;         // first unused position in the backing memory
+    size_t capacity;    // the maximum capacity of the backing memory
+    size_t committed;   // how much of the backing memory is acutally "backing"
 };
 
 

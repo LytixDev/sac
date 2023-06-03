@@ -33,11 +33,8 @@ static bool m_arena_commit(struct m_arena *arena, size_t commit)
         return false;
 
     int rc = mprotect(arena->memory + arena->committed, commit, PROT_READ | PROT_WRITE);
-    if (rc == -1) {
-        //fprintf(stderr, "sac: committing memory failed in file %s on line %d\n", __FILE__, __LINE__);
-        //exit(1);
+    if (rc == -1)
         return false;
-    }
 
     arena->committed += commit;
     return true;
@@ -45,11 +42,8 @@ static bool m_arena_commit(struct m_arena *arena, size_t commit)
 
 static bool m_arena_ensure_commited(struct m_arena *arena)
 {
-    if (arena->pos > arena->capacity) {
-        //fprintf(stderr, "sac: arena full!\n");
-        //exit(1);
+    if (arena->pos > arena->capacity)
         false;
-    }
 
     if (arena->committed == SAC_NOT_MANAGE || arena->committed >= arena->pos)
         return true;
@@ -157,12 +151,15 @@ void m_arena_release(struct m_arena *arena)
  * heavily modified, but inspired by:
  * https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
  */
-void *m_arena_alloc_internal(struct m_arena *arena, size_t size, size_t align, bool zero)
+void *m_arena_alloc_internal(struct m_arena *arena, size_t size, size_t alignment, bool zero)
 {
+    /* curr_ptr will be the first non-used memory address */
     uintptr_t curr_ptr = (uintptr_t)arena->memory + (uintptr_t)arena->pos;
-    uintptr_t offset = align_forward(curr_ptr, align);
-    offset -= (uintptr_t)arena->memory; /* change to relative offset */
-    arena->pos += offset + size;
+    /* offset wil be the first aligned to one word non-used memory adress */
+    uintptr_t offset = align_forward(curr_ptr, alignment);
+    /* change to relative offset from the first memory adress */
+    offset -= (uintptr_t)arena->memory;
+    arena->pos = offset + size;
 
     bool success = m_arena_ensure_commited(arena);
     if (!success)
