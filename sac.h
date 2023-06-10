@@ -30,10 +30,8 @@
 #define SAC_DEFAULT_CAPACITY GB_SIZE_T(2)
 #define SAC_DEFAULT_COMMIT_SIZE KB_SIZE_T(8)
 
-#ifdef SAC_TYPEDEF
 typedef struct m_arena Arena;
 typedef struct m_arena_tmp ArenaTmp;
-#endif /* SAC_TYPEDEF */
 
 #ifndef SAC_DEFAULT_ALIGNMENT
 #define SAC_DEFAULT_ALIGNMENT (sizeof(void *))
