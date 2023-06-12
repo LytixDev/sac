@@ -25,10 +25,15 @@
 void commit_more(void)
 {
     Arena arena;
-    m_arena_init_dynamic(&arena, SAC_DEFAULT_CAPACITY, 32);
-    m_arena_alloc(&arena, 32);
-    m_arena_alloc(&arena, 32);
-    m_arena_alloc(&arena, 1024);
+    m_arena_init_dynamic(&arena, 1, 8);
+    m_arena_alloc(&arena, arena.page_size);
+
+    uint8_t *str = m_arena_alloc(&arena, 32);
+    memcpy(str, "Hello", 5);
+    assert(str[0] == 'H' && str[1] == 'e' && str[2] == 'l' && str[3] == 'l' && str[4] == 'o');
+
+    m_arena_alloc(&arena, arena.page_size);
+
     m_arena_release(&arena);
 }
 
@@ -39,7 +44,7 @@ void test(void)
 #endif
 
     Arena arena;
-    m_arena_init_dynamic(&arena, SAC_DEFAULT_CAPACITY, SAC_DEFAULT_COMMIT_SIZE);
+    m_arena_init_dynamic(&arena, 1, 2);
 
     uint8_t *str = m_arena_alloc(&arena, 8);
     uint8_t *str2 = m_arena_alloc(&arena, 8);
@@ -54,6 +59,6 @@ void test(void)
 
 int main(void)
 {
-    //test();
+    test();
     commit_more();
 }

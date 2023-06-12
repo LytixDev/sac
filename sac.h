@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2022 Nicolai Brand 
+ *  Copyright (C) 2022-2023 Nicolai Brand 
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -12,8 +12,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>. */
 #ifndef SAC_H
 #define SAC_H
 
@@ -25,10 +24,10 @@
 #       define SAC_BAD_AARCH
 #endif
 
-#define KB_SIZE_T(x) ((size_t)(x) << 10)
-#define GB_SIZE_T(x) ((size_t)(x) << 30)
-#define SAC_DEFAULT_CAPACITY GB_SIZE_T(2)
-#define SAC_DEFAULT_COMMIT_SIZE KB_SIZE_T(8)
+//#define KB_SIZE_T(x) ((size_t)(x) << 10)
+//#define GB_SIZE_T(x) ((size_t)(x) << 30)
+//#define SAC_DEFAULT_CAPACITY GB_SIZE_T(2)
+//#define SAC_DEFAULT_COMMIT_SIZE KB_SIZE_T(8)
 
 #ifdef SAC_TYPEDEF
 typedef struct m_arena Arena;
@@ -39,10 +38,6 @@ typedef struct m_arena_tmp ArenaTmp;
 #define SAC_DEFAULT_ALIGNMENT (sizeof(void *))
 #endif
 
-/* implementation does not manage the backing memory */
-#define SAC_NOT_MANAGE SIZE_MAX
-
-
 /* types */
 /*
  * generic memory arena that dynamically grows its committed size.
@@ -51,9 +46,13 @@ typedef struct m_arena_tmp ArenaTmp;
 struct m_arena {
     uint8_t *memory;    // the backing memory
     size_t offset;      // first unused position in the backing memory
-    size_t capacity;    // the maximum capacity of the backing memory
-    size_t committed;   // how much of the backing memory is acutally "backing"
-    size_t commit_size;
+    bool is_dynamic;
+    union {
+        size_t max_pages;
+        size_t backing_length;
+    };
+    size_t page_size;
+    size_t pages_commited;   // how much of the backing memory is acutally "backing"
 };
 
 struct m_arena_tmp {
@@ -64,7 +63,7 @@ struct m_arena_tmp {
 
 /* functions */
 void m_arena_init(struct m_arena *arena, void *backing_memory, size_t backing_length);
-void m_arena_init_dynamic(struct m_arena *arena, size_t capacity, size_t starting_committed);
+void m_arena_init_dynamic(struct m_arena *arena, size_t starting_pages, size_t max_pages);
 void m_arena_release(struct m_arena *arena);
 
 void *m_arena_alloc_internal(struct m_arena *arena, size_t size, size_t align, bool zero);

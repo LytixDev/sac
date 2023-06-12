@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2022 Nicolai Brand 
+ *  Copyright (C) 2022-2023 Nicolai Brand 
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,50 +20,46 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include "sys/mman.h"
+#include <unistd.h>
+#include <sys/mman.h>
 #include "sac.h"
 
+
 /* internal functions */
-static bool m_arena_commit(struct m_arena *arena, size_t commit)
+static bool m_arena_commit(struct m_arena *arena, size_t pages_to_commit)
 {
-    assert(arena->committed != SAC_NOT_MANAGE);
+    assert(arena->is_dynamic);
 
     /* no more space to commit */
-    if (arena->offset + commit > arena->capacity)
+    if (arena->pages_commited + pages_to_commit > arena->max_pages)
         return false;
 
-    int rc = mprotect(arena->memory, commit, PROT_READ | PROT_WRITE);
+    int rc = mprotect(arena->memory + (arena->pages_commited * arena->page_size), pages_to_commit * arena->page_size, PROT_READ | PROT_WRITE);
     if (rc == -1)
         return false;
 
-    arena->committed += commit;
+    arena->pages_commited += pages_to_commit;
     return true;
 }
 
 static bool m_arena_ensure_commited(struct m_arena *arena)
 {
-    if (arena->offset > arena->capacity)
-        false;
+    if (!arena->is_dynamic)
+        return arena->offset <= arena->backing_length;
 
-    if (arena->committed == SAC_NOT_MANAGE || arena->committed >= arena->offset)
+    /* know arena is dynamic */
+    size_t memory_committed = arena->pages_commited * arena->page_size;
+    if (arena->offset <= memory_committed)
         return true;
 
-    /*
-     * will only be called if pos < capacity, so we the case where we don't manage the memory,
-     * i.e committed = SAC_NOT_MANAGE, will never enter here
-     */
-    size_t max_commitable = arena->capacity - arena->committed;
-    size_t delta = arena->offset - arena->committed;
-    if (delta > max_commitable)
+    //TODO: this math can probably be optimized
+    size_t delta = arena->offset - memory_committed;
+    size_t pages_to_commit = (delta / arena->page_size) + 1;
+    if (arena->pages_commited + pages_to_commit > arena->max_pages)
         return false;
 
-    /* commit as much as we need + the default, or just the default if its sufficient */
-    size_t to_commit = (delta > arena->commit_size ? delta + arena->commit_size : arena->commit_size);
-    if (to_commit > max_commitable)
-        to_commit = max_commitable;
-
-    m_arena_commit(arena, to_commit);
-    return m_arena_ensure_commited(arena);
+    m_arena_commit(arena, pages_to_commit);
+    return true;
 }
 
 /*
@@ -99,42 +95,30 @@ void m_arena_init(struct m_arena *arena, void *backing_memory, size_t backing_le
 {
     assert(backing_memory != NULL && backing_length > 0);
 
+    arena->is_dynamic = false;
     arena->memory = backing_memory;
-    arena->capacity = backing_length;
+    arena->backing_length = backing_length;
     arena->offset = 0;
-    arena->committed = SAC_NOT_MANAGE;
 }
 
-void m_arena_init_dynamic(struct m_arena *arena, size_t capacity, size_t starting_committed)
+void m_arena_init_dynamic(struct m_arena *arena, size_t starting_pages, size_t max_pages)
 {
-    assert(capacity >= starting_committed);
+    assert(starting_pages <= max_pages);
 
-    arena->capacity = (capacity == 0 ? SAC_DEFAULT_CAPACITY : capacity);
+    arena->is_dynamic = true;
+    arena->max_pages = max_pages;
+    arena->page_size = sysconf(_SC_PAGE_SIZE);
+    arena->offset = 0;
+    arena->pages_commited = 0;
 
-#ifdef linux
-    arena->memory = mmap(NULL, arena->capacity, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0); 
-#elif defined __unix__
-    /* 
-     * apparently MAP_ANONYMOUS is a linux specific feature.
-     * this is the POSIX compliant way of doing it.
-     */
-    int fd = open("/dev/zero", O_RDWR);   
-    if (fd == -1) {
-        fprintf(stderr, "sac: map failed in file %s on line %d\n", __FILE__, __LINE__);
-        exit(1);
-    }
-
-    arena->memory = mmap(NULL, arena->capacity, PROT_NONE, MAP_PRIVATE, fd, 0);
+    arena->memory = mmap(NULL, arena->max_pages * arena->page_size, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0); 
     if (arena->memory == MAP_FAILED) {
         fprintf(stderr, "sac: map failed in file %s on line %d\n", __FILE__, __LINE__);
         exit(1);
     }
-#endif
 
-    arena->offset = 0;
-    arena->committed = 0;
-    arena->commit_size = starting_committed;
-    m_arena_commit(arena, starting_committed);
+    if (starting_pages != 0)
+        m_arena_commit(arena, starting_pages);
 }
 
 void m_arena_release(struct m_arena *arena)
@@ -142,10 +126,9 @@ void m_arena_release(struct m_arena *arena)
     assert(arena != NULL);
 
     /* the implementation does not manage the backing memory */
-    if (arena->committed == SAC_NOT_MANAGE)
-        return;
+    if (!arena->is_dynamic)
 
-    munmap(arena->memory, arena->capacity);
+    munmap(arena->memory, arena->max_pages);
 }
 
 /*
