@@ -53,6 +53,7 @@ struct m_arena {
     size_t offset;      // first unused position in the backing memory
     size_t capacity;    // the maximum capacity of the backing memory
     size_t committed;   // how much of the backing memory is acutally "backing"
+    size_t commit_size;
 };
 
 struct m_arena_tmp {

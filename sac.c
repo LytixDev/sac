@@ -32,7 +32,7 @@ static bool m_arena_commit(struct m_arena *arena, size_t commit)
     if (arena->offset + commit > arena->capacity)
         return false;
 
-    int rc = mprotect(arena->memory + arena->committed, commit, PROT_READ | PROT_WRITE);
+    int rc = mprotect(arena->memory, commit, PROT_READ | PROT_WRITE);
     if (rc == -1)
         return false;
 
@@ -58,7 +58,7 @@ static bool m_arena_ensure_commited(struct m_arena *arena)
         return false;
 
     /* commit as much as we need + the default, or just the default if its sufficient */
-    size_t to_commit = (delta > SAC_DEFAULT_COMMIT_SIZE ? delta + SAC_DEFAULT_COMMIT_SIZE : SAC_DEFAULT_COMMIT_SIZE);
+    size_t to_commit = (delta > arena->commit_size ? delta + arena->commit_size : arena->commit_size);
     if (to_commit > max_commitable)
         to_commit = max_commitable;
 
@@ -133,6 +133,7 @@ void m_arena_init_dynamic(struct m_arena *arena, size_t capacity, size_t startin
 
     arena->offset = 0;
     arena->committed = 0;
+    arena->commit_size = starting_committed;
     m_arena_commit(arena, starting_committed);
 }
 
