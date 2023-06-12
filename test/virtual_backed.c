@@ -22,7 +22,17 @@
 #include "../sac.h"
 
 
-int main(void)
+void commit_more(void)
+{
+    Arena arena;
+    m_arena_init_dynamic(&arena, SAC_DEFAULT_CAPACITY, 32);
+    m_arena_alloc(&arena, 32);
+    m_arena_alloc(&arena, 32);
+    m_arena_alloc(&arena, 1024);
+    m_arena_release(&arena);
+}
+
+void test(void)
 {
 #ifdef SAC_BAD_AARCH
     fprintf(stderr, "may not work properly");
@@ -40,4 +50,10 @@ int main(void)
     assert(str2[0] == 'W' && str2[1] == 'o' && str2[2] == 'r' && str2[3] == 'l' && str2[4] == 'd');
 
     m_arena_release(&arena);
+}
+
+int main(void)
+{
+    //test();
+    commit_more();
 }
