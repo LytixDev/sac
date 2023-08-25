@@ -22,8 +22,16 @@
 #include <stdint.h>
 
 #if !(defined __x86_64__ && defined __unix__)
-#       define SAC_BAD_AARCH
+#  define SAC_BAD_AARCH
 #endif
+
+#ifndef MAP_ANON
+#  ifdef MAP_ANONYMOUS
+#    define MAP_ANON MAP_ANONYMOUS
+#  else
+#    define SAC_BAD_AARCH
+#  endif /* MAP_ANONYMOUS */
+#endif /* MAP_ANON */
 
 typedef struct m_arena Arena;
 typedef struct m_arena_tmp ArenaTmp;
