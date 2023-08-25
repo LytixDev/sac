@@ -20,8 +20,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <sys/mman.h>
 
-#if !(defined __x86_64__ && defined __unix__)
+#ifndef __unix__
 #  define SAC_BAD_AARCH
 #endif
 
