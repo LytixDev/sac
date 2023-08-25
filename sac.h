@@ -20,12 +20,15 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
+#ifndef _GNU_SOURCE
+#  define _GNU_SOURCE
+#endif
+#include <sys/mman.h>
 
 #ifndef __unix__
 #  define SAC_BAD_AARCH
 #endif
 
-#define _GNU_SOURCE
 #ifndef MAP_ANON
 #  ifdef MAP_ANONYMOUS
 #    define MAP_ANON MAP_ANONYMOUS
@@ -145,21 +148,12 @@ static bool m_arena_ensure_commited(struct m_arena *arena)
 }
 
 /*
- * stolen from:
- * https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
- */
-static bool is_power_of_two(uintptr_t x)
-{
-    return (x & (x - 1)) == 0;
-}
-
-/*
  * slightly modified, but mostly stolen from:
  * https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
  */
 static uintptr_t align_forward(uintptr_t ptr, size_t align)
 {
-    assert(is_power_of_two(align));
+    assert(align & (align - 1)) == 0);
 
     uintptr_t p = ptr;
     uintptr_t a = (uintptr_t)align;
@@ -261,5 +255,5 @@ void m_arena_tmp_release(struct m_arena_tmp tmp)
     tmp.arena->offset = tmp.offset;
 }
 
-#undef _GNU_SOURCE
+#undef _GNU_SOURCE 
 #endif /* SAC_IMPLEMENTATION */
