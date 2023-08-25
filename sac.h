@@ -20,12 +20,12 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <sys/mman.h>
 
 #ifndef __unix__
 #  define SAC_BAD_AARCH
 #endif
 
+#define _GNU_SOURCE
 #ifndef MAP_ANON
 #  ifdef MAP_ANONYMOUS
 #    define MAP_ANON MAP_ANONYMOUS
@@ -261,4 +261,5 @@ void m_arena_tmp_release(struct m_arena_tmp tmp)
     tmp.arena->offset = tmp.offset;
 }
 
+#undef _GNU_SOURCE
 #endif /* SAC_IMPLEMENTATION */
