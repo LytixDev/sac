@@ -153,7 +153,7 @@ static bool m_arena_ensure_commited(struct m_arena *arena)
  */
 static uintptr_t align_forward(uintptr_t ptr, size_t align)
 {
-    assert(align & (align - 1) == 0);
+    assert((align & (align - 1)) == 0);
 
     uintptr_t p = ptr;
     uintptr_t a = (uintptr_t)align;
