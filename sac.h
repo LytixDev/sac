@@ -20,14 +20,17 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#if !(defined __x86_64__ && defined __unix__)
-#       define SAC_BAD_AARCH
+#ifndef __unix__
+#  define SAC_BAD_AARCH
 #endif
 
-//#define KB_SIZE_T(x) ((size_t)(x) << 10)
-//#define GB_SIZE_T(x) ((size_t)(x) << 30)
-//#define SAC_DEFAULT_CAPACITY GB_SIZE_T(2)
-//#define SAC_DEFAULT_COMMIT_SIZE KB_SIZE_T(8)
+#ifndef MAP_ANON
+#  ifdef MAP_ANONYMOUS
+#    define MAP_ANON MAP_ANONYMOUS
+#  else
+#    define SAC_BAD_AARCH
+#  endif /* MAP_ANONYMOUS */
+#endif /* MAP_ANON */
 
 #ifdef SAC_TYPEDEF
 typedef struct m_arena Arena;
