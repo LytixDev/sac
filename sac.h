@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2022-2024 Nicolai Brand 
+ *  Copyright (C) 2022-2024 Nicolai Brand (lytix.dev)
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,32 +19,38 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <sys/mman.h>
 
 #ifndef __unix__
 #  define SAC_BAD_AARCH
 #endif
 
-#ifndef MAP_ANON
-#  ifdef MAP_ANONYMOUS
-#    define MAP_ANON MAP_ANONYMOUS
-#  else
-#    define SAC_BAD_AARCH
-#  endif /* MAP_ANONYMOUS */
+/* Try to define SAC_MAP_ANON */
+#ifdef MAP_ANON
+#  define SAC_MAP_ANON MAP_ANON
 #endif /* MAP_ANON */
 
-#ifdef SAC_TYPEDEF
-typedef struct m_arena Arena;
-typedef struct m_arena_tmp ArenaTmp;
-#endif /* SAC_TYPEDEF */
+#ifndef SAC_MAP_ANON
+#  ifdef MAP_ANONYMOUS
+#    define SAC_MAP_ANON MAP_ANONYMOUS
+#  endif /* MAP_ANONYMOUS */
+#endif /* SAC_MAP_ANON */
+
+#ifndef SAC_MAP_ANON
+#  define SAC_BAD_AARCH
+#endif /* SAC_MAP_ANON */
 
 #ifndef SAC_DEFAULT_ALIGNMENT
-#define SAC_DEFAULT_ALIGNMENT (sizeof(void *))
+#  define SAC_DEFAULT_ALIGNMENT (sizeof(void *))
 #endif
 
 typedef struct m_arena Arena;
 typedef struct m_arena_tmp ArenaTmp;
 
 /* types */
+typedef struct m_arena Arena;
+typedef struct m_arena_tmp ArenaTmp;
+
 /*
  * generic memory arena that dynamically grows its committed size.
  * more complex memory arenas can be built using this as a base.
@@ -92,4 +98,3 @@ void m_arena_tmp_release(struct m_arena_tmp tmp);
 #define ARENA_TMP(___arena) for (size_t ___i = 0, ___offset = (___arena)->offset; ___i == 0; ___i += 1, (___arena)->offset = ___offset)
 
 #endif /* !SAC_H */
-

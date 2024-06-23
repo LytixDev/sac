@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2022-2023 Nicolai Brand 
+ *  Copyright (C) 2022-2024 Nicolai Brand (lytix.dev)
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -113,7 +113,7 @@ void m_arena_init_dynamic(struct m_arena *arena, size_t starting_pages, size_t m
     arena->offset = 0;
     arena->pages_commited = 0;
 
-    arena->memory = mmap(NULL, arena->max_pages * arena->page_size, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0); 
+    arena->memory = mmap(NULL, arena->max_pages * arena->page_size, PROT_NONE, MAP_PRIVATE | SAC_MAP_ANON, -1, 0); 
     if (arena->memory == MAP_FAILED) {
         fprintf(stderr, "sac: map failed in file %s on line %d\n", __FILE__, __LINE__);
         exit(1);
