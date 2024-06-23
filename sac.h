@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2022-2023 Nicolai Brand 
+ *  Copyright (C) 2022-2024 Nicolai Brand 
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -40,6 +40,9 @@ typedef struct m_arena_tmp ArenaTmp;
 #ifndef SAC_DEFAULT_ALIGNMENT
 #define SAC_DEFAULT_ALIGNMENT (sizeof(void *))
 #endif
+
+typedef struct m_arena Arena;
+typedef struct m_arena_tmp ArenaTmp;
 
 /* types */
 /*
