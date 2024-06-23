@@ -14,6 +14,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+/* IMPORT START */
 #include <string.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -22,9 +23,10 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/mman.h>
+/* IMPORT END */
 #include "sac.h"
 
-
+/* IMPL START */
 /* internal functions */
 static bool m_arena_commit(struct m_arena *arena, size_t pages_to_commit)
 {
