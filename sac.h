@@ -44,6 +44,9 @@
 #  define SAC_DEFAULT_ALIGNMENT (sizeof(void *))
 #endif
 
+typedef struct m_arena Arena;
+typedef struct m_arena_tmp ArenaTmp;
+
 /* types */
 typedef struct m_arena Arena;
 typedef struct m_arena_tmp ArenaTmp;
