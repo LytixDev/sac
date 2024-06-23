@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (C) 2023 Nicolai Brand (https://lytix.dev)
+# Copyright (C) 2023-2024 Nicolai Brand (lytix.dev)
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ n_tests="$(find . -maxdepth 1 -type f -name '*.c' | wc -l)"
 
 for file in *.c
 do
-    gcc -g -fsanitize=address -fsanitize=undefined -Wall -Wpedantic -Wextra -Werror "$file" ../sac.c
+    cc -g -fsanitize=address -fsanitize=undefined -Wall -Wpedantic -Wextra -Werror -std=c11 "$file" ../sac.c
     [ "$mem_leak_option" = "-m" ] && (valgrind -s ./a.out >/dev/null)
     if ./a.out
     then

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2022-2024 Nicolai Brand 
+ *  Copyright (C) 2022-2024 Nicolai Brand (lytix.dev)
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@
 #  endif /* MAP_ANONYMOUS */
 #endif /* SAC_MAP_ANON */
 
-#ifdef SAC_MAP_ANON
+#ifndef SAC_MAP_ANON
 #  define SAC_BAD_AARCH
 #endif /* SAC_MAP_ANON */
 

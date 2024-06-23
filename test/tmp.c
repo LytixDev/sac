@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2022 Nicolai Brand 
+ *  Copyright (C) 2022-2024 Nicolai Brand (lytix.dev)
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <string.h>
-#define SAC_TYPEDEF
 #include "../sac.h"
 
 
